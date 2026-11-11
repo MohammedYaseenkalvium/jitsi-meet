@@ -1,6 +1,48 @@
 import { IReduxState } from '../app/types';
+import { isMacOS, isWindows } from '../base/environment/environment';
 
 export type CaptureKind = 'audio' | 'video';
+
+/**
+ * Whether to guide the user through unblocking a device after a request for it was denied.
+ *
+ * @param {IReduxState} state - The redux state.
+ * @param {CaptureKind} kind - The device.
+ * @returns {boolean}
+ */
+export function shouldShowGuidance(state: IReduxState, kind: CaptureKind): boolean {
+    return !state['features/base/config'].disablePermissionGuidanceDialog
+        && state['features/base/devices'].permissionStatus?.[kind]?.state === 'denied';
+}
+
+/**
+ * Returns the URL of the OS privacy settings for a device, on macOS and Windows.
+ *
+ * @param {CaptureKind} kind - The device.
+ * @returns {string|undefined}
+ */
+export function getSystemSettingsUrl(kind: CaptureKind): string | undefined {
+    if (isMacOS()) {
+        return `x-apple.systempreferences:com.apple.preference.security?Privacy_${
+            kind === 'audio' ? 'Microphone' : 'Camera'}`;
+    }
+    if (isWindows()) {
+        return kind === 'audio' ? 'ms-settings:privacy-microphone' : 'ms-settings:privacy-webcam';
+    }
+}
+
+/**
+ * Opens the OS privacy settings, the browser asks the user to confirm handing the link over to the OS.
+ *
+ * @param {string} url - One of the URLs from {@link getSystemSettingsUrl}.
+ * @returns {void}
+ */
+export function openSystemSettings(url: string) {
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.click();
+}
 
 /**
  * Returns the devices, among the given ones, for which a request makes the browser show its permission prompt.

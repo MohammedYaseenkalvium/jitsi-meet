@@ -3,6 +3,7 @@ import { AnyAction } from 'redux';
 import { createDevicePermissionDeniedEvent } from '../../analytics/AnalyticsEvents';
 import { sendAnalytics } from '../../analytics/functions';
 import { IStore } from '../../app/types';
+import { shouldShowGuidance } from '../../device-permissions/functions';
 import { processExternalDeviceRequest } from '../../device-selection/functions';
 import { showNotification, showWarningNotification } from '../../notifications/actions';
 import { NOTIFICATION_TIMEOUT_TYPE } from '../../notifications/constants';
@@ -163,11 +164,14 @@ MiddlewareRegistry.register(store => next => action => {
         const titleKey = name === JitsiTrackErrors.PERMISSION_DENIED
             ? 'deviceError.cameraPermission' : 'deviceError.cameraError';
 
-        store.dispatch(showWarningNotification({
-            description: additionalCameraErrorMsg,
-            descriptionKey: cameraErrorMsg,
-            titleKey
-        }, NOTIFICATION_TIMEOUT_TYPE.MEDIUM));
+        // The guidance dialog explains a denial instead.
+        if (name !== JitsiTrackErrors.PERMISSION_DENIED || !shouldShowGuidance(store.getState(), 'video')) {
+            store.dispatch(showWarningNotification({
+                description: additionalCameraErrorMsg,
+                descriptionKey: cameraErrorMsg,
+                titleKey
+            }, NOTIFICATION_TIMEOUT_TYPE.MEDIUM));
+        }
 
         if (isPrejoinPageVisible(store.getState())) {
             store.dispatch(setDeviceStatusWarning(titleKey));
@@ -192,11 +196,14 @@ MiddlewareRegistry.register(store => next => action => {
             ? 'deviceError.microphonePermission'
             : 'deviceError.microphoneError';
 
-        store.dispatch(showWarningNotification({
-            description: additionalMicErrorMsg,
-            descriptionKey: micErrorMsg,
-            titleKey
-        }, NOTIFICATION_TIMEOUT_TYPE.MEDIUM));
+        // The guidance dialog explains a denial instead.
+        if (name !== JitsiTrackErrors.PERMISSION_DENIED || !shouldShowGuidance(store.getState(), 'audio')) {
+            store.dispatch(showWarningNotification({
+                description: additionalMicErrorMsg,
+                descriptionKey: micErrorMsg,
+                titleKey
+            }, NOTIFICATION_TIMEOUT_TYPE.MEDIUM));
+        }
 
         if (isPrejoinPageVisible(store.getState())) {
             store.dispatch(setDeviceStatusWarning(titleKey));

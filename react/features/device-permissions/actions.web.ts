@@ -1,8 +1,14 @@
 import { IStore } from '../app/types';
 import { openDialog } from '../base/dialog/actions';
+import { isDialogOpen } from '../base/dialog/functions';
+import { createLocalTracksA } from '../base/tracks/actions.any';
+import { getLocalTrack } from '../base/tracks/functions.any';
+import { setDeviceStatusOk } from '../prejoin/actions.web';
+import { isPrejoinPageVisible } from '../prejoin/functions';
 
+import PermissionBlockedDialog from './components/web/PermissionBlockedDialog';
 import PermissionPromptDialog from './components/web/PermissionPromptDialog';
-import { CaptureKind, getKindsToPrompt } from './functions';
+import { CaptureKind, getKindsToPrompt, shouldShowGuidance } from './functions';
 
 // A new key for every dialog, so that one opened while the previous one fades out isn't reused with its state.
 let dialogKey = 0;
@@ -36,5 +42,59 @@ export function explainBeforePrompt(kinds: CaptureKind[], whenUnmuting = false) 
                 whenUnmuting
             }));
         });
+    };
+}
+
+/**
+ * Guides the user through unblocking the devices after the requests for them were denied.
+ *
+ * @param {CaptureKind[]} kinds - The devices whose requests failed.
+ * @returns {Function}
+ */
+export function showPermissionGuidance(kinds: CaptureKind[]) {
+    return (dispatch: IStore['dispatch'], getState: IStore['getState']) => {
+        const state = getState();
+        let blocked = kinds.filter(kind => shouldShowGuidance(state, kind));
+
+        // Each device fails on its own, so add it to the guidance already shown.
+        if (isDialogOpen(state, PermissionBlockedDialog)) {
+            const shown: CaptureKind[] = (state['features/base/dialog'].componentProps as any)?.kinds ?? [];
+
+            if (blocked.every(kind => shown.includes(kind))) {
+                return;
+            }
+            blocked = ([ 'audio', 'video' ] as CaptureKind[]).filter(kind => shown.includes(kind) || blocked.includes(kind));
+        }
+
+        if (!blocked.length) {
+            return;
+        }
+
+        dispatch(openDialog('PermissionBlockedDialog', PermissionBlockedDialog, {
+            key: ++dialogKey,
+            kinds: blocked,
+            onRetry: () => dispatch(retryDevices(blocked))
+        }));
+    };
+}
+
+/**
+ * Requests the devices again, after the user unblocked them.
+ *
+ * @param {CaptureKind[]} kinds - The devices.
+ * @returns {Function}
+ */
+export function retryDevices(kinds: CaptureKind[]) {
+    return async (dispatch: IStore['dispatch'], getState: IStore['getState']) => {
+        const missing = kinds.filter(kind => !getLocalTrack(getState()['features/base/tracks'], kind));
+
+        await dispatch(createLocalTracksA({ devices: missing }));
+
+        const state = getState();
+
+        if (isPrejoinPageVisible(state)
+                && missing.every(kind => getLocalTrack(state['features/base/tracks'], kind)?.jitsiTrack)) {
+            dispatch(setDeviceStatusOk('prejoin.lookGood'));
+        }
     };
 }
