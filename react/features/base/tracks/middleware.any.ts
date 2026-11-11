@@ -2,6 +2,7 @@ import { batch } from 'react-redux';
 
 import { IStore } from '../../app/types';
 import { _RESET_BREAKOUT_ROOMS } from '../../breakout-rooms/actionTypes';
+import { explainBeforePrompt } from '../../device-permissions/actions';
 import { getCurrentConference } from '../conference/functions';
 import {
     SET_CAMERA_FACING_MODE,
@@ -190,12 +191,22 @@ function _setMuted(store: IStore, { ensureTrack, muted }: {
                 .catch(() => dispatch(trackMuteUnmuteFailed(localTrack, muted)));
         }
     } else if (!muted && ensureTrack) {
-        // TODO(saghul): reconcile these 2 types.
-        const createMediaType = mediaType === MEDIA_TYPE.SCREENSHARE ? 'desktop' : mediaType;
+        const explained = mediaType === MEDIA_TYPE.VIDEO
+            ? dispatch(explainBeforePrompt([ 'video' ], true))
+            : Promise.resolve(true);
 
-        typeof APP !== 'undefined' && dispatch(gumPending([ mediaType ], IGUMPendingState.PENDING_UNMUTE));
-        dispatch(createLocalTracksA({ devices: [ createMediaType ] })).then(() => {
-            typeof APP !== 'undefined' && dispatch(gumPending([ mediaType ], IGUMPendingState.NONE));
+        explained.then((allowed: boolean) => {
+            if (!allowed) {
+                return;
+            }
+
+            // TODO(saghul): reconcile these 2 types.
+            const createMediaType = mediaType === MEDIA_TYPE.SCREENSHARE ? 'desktop' : mediaType;
+
+            typeof APP !== 'undefined' && dispatch(gumPending([ mediaType ], IGUMPendingState.PENDING_UNMUTE));
+            dispatch(createLocalTracksA({ devices: [ createMediaType ] })).then(() => {
+                typeof APP !== 'undefined' && dispatch(gumPending([ mediaType ], IGUMPendingState.NONE));
+            });
         });
     }
 }
