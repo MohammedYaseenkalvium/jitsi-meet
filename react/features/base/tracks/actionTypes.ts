@@ -38,6 +38,7 @@ export const TRACK_CREATE_CANCELED = 'TRACK_CREATE_CANCELED';
  *
  * {
  *     type: TRACK_CREATE_ERROR,
+ *     error: JitsiTrackError,
  *     permissionDenied: Boolean,
  *     trackType: MEDIA_TYPE
  * }

@@ -810,6 +810,7 @@ function _onCreateLocalTracksRejected(error?: Error, device?: string) {
         // If permissions are not allowed, alert the user.
         dispatch({
             type: TRACK_CREATE_ERROR,
+            error,
             permissionDenied: error?.name === JitsiTrackErrors.PERMISSION_DENIED,
             trackType: device
         });
