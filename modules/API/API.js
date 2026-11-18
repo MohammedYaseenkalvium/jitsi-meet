@@ -1849,7 +1849,7 @@ class API {
      * changed.
      *
      * @param {Object} permissions - The status by media type, audio and video: {@code { state, reason }} where state
-     * is granted, denied or prompt, and reason (user, browser or os) says why access was denied.
+     * is granted, denied or prompt, and reason (user, browser, os or policy) says why access was denied.
      * @returns {void}
      */
     notifyDevicePermissionsChanged(permissions) {
